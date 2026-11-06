@@ -223,7 +223,7 @@ export default function App() {
               {engineStatus.state !== "ready" && (
                 <View style={styles.modelNotice}>
                   <View style={styles.noticeDot} />
-                  <Text style={styles.noticeText}>Local model not installed · AI replies are not enabled yet</Text>
+                  <Text style={styles.noticeText}>Offline model setup is being prepared</Text>
                 </View>
               )}
               <View style={styles.composer}>
