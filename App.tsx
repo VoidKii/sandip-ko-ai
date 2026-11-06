@@ -41,6 +41,8 @@ export default function App() {
   const [booting, setBooting] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   const [sending, setSending] = useState(false);
+  const [installing, setInstalling] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -69,6 +71,24 @@ export default function App() {
   async function persist(next: Conversation[]) {
     setConversations(next);
     await saveConversations(next);
+  }
+
+  async function installModel() {
+    if (installing) return;
+    setInstalling(true);
+    setDownloadProgress(0);
+    setEngineStatus({ state: "loading" });
+    try {
+      await localAI.installModel(progress => setDownloadProgress(progress));
+      setEngineStatus(await localAI.getStatus());
+    } catch (error) {
+      setEngineStatus({
+        state: "error",
+        message: error instanceof Error ? error.message : "Model download failed."
+      });
+    } finally {
+      setInstalling(false);
+    }
   }
 
   function newChat() {
@@ -103,7 +123,12 @@ export default function App() {
 
     setSending(true);
     try {
-      const answer = await localAI.generate(text);
+      const answer = await localAI.generate(
+        conversation.messages.map(({ role, text: messageText }) => ({
+          role,
+          content: messageText
+        }))
+      );
       const updated = {
         ...conversation,
         updatedAt: Date.now(),
@@ -223,7 +248,27 @@ export default function App() {
               {engineStatus.state !== "ready" && (
                 <View style={styles.modelNotice}>
                   <View style={styles.noticeDot} />
-                  <Text style={styles.noticeText}>Offline model setup is being prepared</Text>
+                  <View style={styles.modelNoticeCopy}>
+                    <Text style={styles.noticeText}>
+                      {installing
+                        ? `Downloading local model · ${Math.round(downloadProgress * 100)}%`
+                        : engineStatus.state === "error"
+                          ? engineStatus.message
+                          : "A one-time model download is needed"}
+                    </Text>
+                    {!installing && (
+                      <Text style={styles.modelSubtext}>About 1 GB · After download, AI runs offline</Text>
+                    )}
+                  </View>
+                  <Pressable
+                    onPress={installModel}
+                    disabled={installing}
+                    style={styles.downloadButton}
+                  >
+                    {installing
+                      ? <ActivityIndicator size="small" color={palette.white} />
+                      : <Text style={styles.downloadButtonText}>Download</Text>}
+                  </Pressable>
                 </View>
               )}
               <View style={styles.composer}>
@@ -290,6 +335,10 @@ const styles = StyleSheet.create({
   modelNotice: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 4, paddingBottom: 9 },
   noticeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: palette.accent },
   noticeText: { color: palette.muted, fontSize: 10 },
+  modelNoticeCopy: { flex: 1, gap: 3 },
+  modelSubtext: { color: "#A09D94", fontSize: 9 },
+  downloadButton: { minWidth: 78, height: 31, paddingHorizontal: 11, borderRadius: 10, backgroundColor: palette.ink, alignItems: "center", justifyContent: "center" },
+  downloadButtonText: { color: palette.white, fontSize: 10, fontWeight: "600" },
   composer: { minHeight: 58, borderWidth: 1, borderColor: "#D8D3C8", borderRadius: 19, backgroundColor: palette.white, flexDirection: "row", alignItems: "flex-end", padding: 8, shadowColor: "#302D25", shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
   input: { flex: 1, maxHeight: 120, minHeight: 38, paddingHorizontal: 10, paddingTop: 10, paddingBottom: 8, color: palette.ink, fontSize: 14, lineHeight: 20 },
   sendButton: { width: 38, height: 38, borderRadius: 13, backgroundColor: palette.ink, alignItems: "center", justifyContent: "center" },
