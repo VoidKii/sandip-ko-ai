@@ -4,38 +4,42 @@ A private, offline-first personal AI app for Android and iOS.
 
 ## Current status
 
-**Early foundation — not yet a functioning AI assistant.**
+The first native inference path is now wired into the chat screen.
 
-The first commit establishes:
-- A Claude-inspired, warm editorial chat interface.
-- Local conversation persistence on the device.
-- A local AI engine interface with an explicit not-installed state.
-- No account, Supabase, analytics, or cloud inference dependency.
+- Claude-inspired, warm editorial chat interface.
+- Local conversation history using AsyncStorage.
+- llama.cpp inference through `llama.rn`.
+- One-time in-app download for the Qwen2.5 1.5B Instruct Q4_K_M GGUF model.
+- No account, Supabase, analytics, or cloud inference endpoint.
 
-The app intentionally does not generate pretend AI responses. Native on-device inference is the next milestone.
+**Important:** this is still an early development build. The Android and iOS native builds have not yet been compiled or tested on a physical phone. A model download and a compatible native development build are required before the AI can answer.
+
+## Model
+
+- Model: Qwen2.5 1.5B Instruct, Q4_K_M
+- Approximate download: 986 MB
+- Source: [Hugging Face model repository](https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF)
+- License shown by the model repository: Apache-2.0
+
+The model is downloaded once into app-controlled storage. After the download completes, inference is local and does not require an internet connection.
 
 ## Development
 
-Requires Node.js LTS and a compatible Android/iOS native build environment.
+Requires Node.js 20.19.4 or newer, Android Studio/Android SDK for Android, and Xcode on macOS for local iOS builds.
 
 ```bash
 npm install
-npx expo start
+npx expo prebuild
+npx expo run:android
 ```
 
-For native modules and a real local model, use a custom development build rather than Expo Go.
-
-## Offline model roadmap
-
-The planned inference layer is llama.cpp via a React Native native bridge (for example, llama.rn), loading a compatible GGUF model from app-controlled local storage. The exact bridge version and model quantization will be selected after testing native compatibility and memory use on target phones.
-
-No model is bundled in this repository. Model files can be large and must be obtained separately with their license terms respected.
+This app uses a native module. Expo Go is not supported; use a development build.
 
 ## Privacy
 
-Conversation data is stored locally using AsyncStorage. No remote AI endpoint is configured. Do not store highly sensitive information in the app until its local storage and device-backup behavior have been reviewed.
+Conversation history is stored locally using AsyncStorage. No remote AI endpoint is configured. Avoid storing highly sensitive information until local storage and device-backup behavior have been reviewed.
 
 ## Platforms
 
 - Android: native build can be produced from Windows, Linux, or macOS with the Android toolchain.
-- iOS: native compilation requires macOS/Xcode or a compatible cloud build service.
+- iOS: local native compilation requires macOS/Xcode; cloud build services are an alternative.
