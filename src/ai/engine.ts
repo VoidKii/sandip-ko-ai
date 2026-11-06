@@ -1,35 +1,103 @@
+import { initLlama } from "llama.rn";
+import * as FileSystem from "expo-file-system/legacy";
+import { LOCAL_MODEL } from "./model";
+
 export type EngineStatus =
   | { state: "not-installed"; message: string }
   | { state: "ready"; modelName: string }
   | { state: "loading" }
   | { state: "error"; message: string };
 
+export type ChatTurn = { role: "user" | "assistant"; content: string };
+
 export interface LocalAIEngine {
   getStatus(): Promise<EngineStatus>;
-  generate(
-    prompt: string,
-    onToken?: (token: string) => void
-  ): Promise<string>;
+  installModel(onProgress?: (progress: number) => void): Promise<void>;
+  generate(messages: ChatTurn[], onToken?: (token: string) => void): Promise<string>;
 }
 
-/**
- * Deliberately honest placeholder.
- * The app must never pretend to answer with a local model before one is
- * installed and connected through the native llama.cpp bridge.
- */
-export class UnconfiguredLocalEngine implements LocalAIEngine {
+const MODEL_DIR = `${FileSystem.documentDirectory ?? ""}models/`;
+const MODEL_PATH = `${MODEL_DIR}${LOCAL_MODEL.fileName}`;
+const STOP_WORDS = ["</s>", "<|end|>", "<|eot_id|>", "<|end_of_text|>", "<|im_end|>"];
+
+class LlamaLocalEngine implements LocalAIEngine {
+  private context: Awaited<ReturnType<typeof initLlama>> | null = null;
+  private loading: Promise<void> | null = null;
+
   async getStatus(): Promise<EngineStatus> {
-    return {
-      state: "not-installed",
-      message: "No on-device model is installed yet."
-    };
+    try {
+      const info = await FileSystem.getInfoAsync(MODEL_PATH);
+      return info.exists
+        ? { state: "ready", modelName: LOCAL_MODEL.name }
+        : { state: "not-installed", message: "Download the local model to begin." };
+    } catch {
+      return { state: "error", message: "Could not check local model storage." };
+    }
   }
 
-  async generate(): Promise<string> {
-    throw new Error(
-      "The local AI engine is not connected yet. Install a compatible model to start chatting offline."
+  async installModel(onProgress?: (progress: number) => void): Promise<void> {
+    const existing = await FileSystem.getInfoAsync(MODEL_PATH);
+    if (existing.exists) return;
+    await FileSystem.makeDirectoryAsync(MODEL_DIR, { intermediates: true });
+    const download = FileSystem.createDownloadResumable(
+      LOCAL_MODEL.url,
+      MODEL_PATH,
+      {},
+      progress => {
+        if (progress.totalBytesExpectedToWrite > 0) {
+          onProgress?.(progress.totalBytesWritten / progress.totalBytesExpectedToWrite);
+        }
+      }
     );
+    const result = await download.downloadAsync();
+    if (!result?.uri) {
+      throw new Error("The model download did not finish. Check your connection and try again.");
+    }
+    onProgress?.(1);
+  }
+
+  private async ensureLoaded(): Promise<void> {
+    if (this.context) return;
+    if (this.loading) return this.loading;
+    this.loading = (async () => {
+      const info = await FileSystem.getInfoAsync(MODEL_PATH);
+      if (!info.exists) throw new Error("Download the local model before chatting.");
+      this.context = await initLlama({
+        model: MODEL_PATH,
+        n_ctx: 2048,
+        n_batch: 256,
+        n_gpu_layers: 0,
+        use_mlock: false
+      });
+    })();
+    try {
+      await this.loading;
+    } finally {
+      this.loading = null;
+    }
+  }
+
+  async generate(messages: ChatTurn[], onToken?: (token: string) => void): Promise<string> {
+    await this.ensureLoaded();
+    if (!this.context) throw new Error("The local model could not be loaded.");
+    const result = await this.context.completion(
+      {
+        messages: [
+          {
+            role: "system",
+            content: "You are sandip ko AI, a thoughtful personal assistant running entirely on this device. Be natural, clear, warm, and concise. Explain difficult things simply. Help with ideas, learning, writing, and coding. Be honest about uncertainty and never claim to use the internet."
+          },
+          ...messages.slice(-12)
+        ],
+        n_predict: 256,
+        temperature: 0.7,
+        top_p: 0.9,
+        stop: STOP_WORDS
+      },
+      data => onToken?.(data.token)
+    );
+    return result.text.trim();
   }
 }
 
-export const localAI: LocalAIEngine = new UnconfiguredLocalEngine();
+export const localAI: LocalAIEngine = new LlamaLocalEngine();
