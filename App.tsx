@@ -151,7 +151,7 @@ export default function App() {
     } catch (error) {
       // The user message remains saved. No fabricated assistant response.
       setEngineStatus({
-        state: "not-installed",
+        state: "error",
         message: error instanceof Error ? error.message : "Local model unavailable."
       });
     } finally {
@@ -315,7 +315,7 @@ export default function App() {
                   >
                     {installing
                       ? <ActivityIndicator size="small" color={palette.white} />
-                      : <Text style={styles.downloadButtonText}>Download</Text>}
+                      : <Text style={styles.downloadButtonText}>{engineStatus.state === "error" ? "Retry" : "Download"}</Text>}
                   </Pressable>
                 </View>
               )}
