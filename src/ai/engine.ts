@@ -37,7 +37,8 @@ class LlamaLocalEngine implements LocalAIEngine {
 
   async installModel(onProgress?: (progress: number) => void): Promise<void> {
     const existing = await FileSystem.getInfoAsync(MODEL_PATH);
-    if (existing.exists) return;
+    if (existing.exists && (existing.size ?? 0) >= 100_000_000) return;
+    if (existing.exists) await FileSystem.deleteAsync(MODEL_PATH, { idempotent: true });
     await FileSystem.makeDirectoryAsync(MODEL_DIR, { intermediates: true });
     const download = FileSystem.createDownloadResumable(
       LOCAL_MODEL.url,
@@ -71,9 +72,11 @@ class LlamaLocalEngine implements LocalAIEngine {
     if (this.loading) return this.loading;
     this.loading = (async () => {
       const info = await FileSystem.getInfoAsync(MODEL_PATH);
-      if (!info.exists) throw new Error("Download the local model before chatting.");
+      if (!info.exists || (info.size ?? 0) < 100_000_000) {
+        throw new Error("The local model is missing or incomplete. Download it again before chatting.");
+      }
       this.context = await initLlama({
-        model: MODEL_PATH,
+        model: MODEL_PATH.startsWith("file://") ? MODEL_PATH : "file://" + MODEL_PATH,
         n_ctx: 2048,
         n_batch: 256,
         n_gpu_layers: 0,
