@@ -57,7 +57,7 @@ export default function App() {
         setConversations(saved);
         setActiveId(saved[0]?.id ?? null);
         setMemories(savedMemories);
-        setMemoryDraft(savedMemories.join("\\n"));
+        setMemoryDraft(savedMemories.join("\n"));
         setEngineStatus(status);
       })
       .catch(() => {
@@ -167,13 +167,13 @@ export default function App() {
 
   async function saveMemoryNotes() {
     const next = memoryDraft
-      .split("\\n")
+      .split("\n")
       .map(item => item.trim())
       .filter(Boolean)
       .slice(0, 30);
     await saveMemories(next);
     setMemories(next);
-    setMemoryDraft(next.join("\\n"));
+    setMemoryDraft(next.join("\n"));
     setShowMemory(false);
   }
 
@@ -217,7 +217,7 @@ export default function App() {
             <TextInput
               value={memoryDraft}
               onChangeText={setMemoryDraft}
-              placeholder={"I'm learning app development\\nI prefer concise explanations"}
+              placeholder={"I'm learning app development\nI prefer concise explanations"}
               placeholderTextColor={palette.muted}
               multiline
               textAlignVertical="top"
