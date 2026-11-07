@@ -17,7 +17,9 @@ import {
   ChatMessage,
   Conversation,
   loadConversations,
-  saveConversations
+  saveConversations,
+  loadMemories,
+  saveMemories
 } from "./src/storage";
 
 const palette = {
@@ -40,17 +42,22 @@ export default function App() {
   const [engineStatus, setEngineStatus] = useState<EngineStatus>({ state: "loading" });
   const [booting, setBooting] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
+  const [showMemory, setShowMemory] = useState(false);
+  const [memories, setMemories] = useState<string[]>([]);
+  const [memoryDraft, setMemoryDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([loadConversations(), localAI.getStatus()])
-      .then(([saved, status]) => {
+    Promise.all([loadConversations(), loadMemories(), localAI.getStatus()])
+      .then(([saved, savedMemories, status]) => {
         if (!mounted) return;
         setConversations(saved);
         setActiveId(saved[0]?.id ?? null);
+        setMemories(savedMemories);
+        setMemoryDraft(savedMemories.join("\\n"));
         setEngineStatus(status);
       })
       .catch(() => {
@@ -127,7 +134,8 @@ export default function App() {
         conversation.messages.map(({ role, text: messageText }) => ({
           role,
           content: messageText
-        }))
+        })),
+        memories
       );
       const updated = {
         ...conversation,
@@ -154,6 +162,19 @@ export default function App() {
   function selectChat(id: string) {
     setActiveId(id);
     setShowHistory(false);
+    setShowMemory(false);
+  }
+
+  async function saveMemoryNotes() {
+    const next = memoryDraft
+      .split("\\n")
+      .map(item => item.trim())
+      .filter(Boolean)
+      .slice(0, 30);
+    await saveMemories(next);
+    setMemories(next);
+    setMemoryDraft(next.join("\\n"));
+    setShowMemory(false);
   }
 
   if (booting) {
@@ -180,12 +201,39 @@ export default function App() {
             <Text style={styles.brandName}>sandip ko AI</Text>
             <Text style={styles.brandMeta}>PERSONAL · ON DEVICE</Text>
           </View>
+          <Pressable onPress={() => { setShowMemory(value => !value); setShowHistory(false); }} style={styles.headerButton}>
+            <Text style={styles.memoryGlyph}>⌁</Text>
+          </Pressable>
           <Pressable onPress={newChat} style={styles.headerButton}>
             <Text style={styles.plus}>＋</Text>
           </Pressable>
         </View>
 
-        {showHistory ? (
+        {showMemory ? (
+          <View style={styles.history}>
+            <Text style={styles.sectionLabel}>PERSONAL MEMORY</Text>
+            <Text style={styles.memoryTitle}>Things to remember</Text>
+            <Text style={styles.memoryHelp}>Add details you want the assistant to use in future chats. One note per line. Stored only on this device.</Text>
+            <TextInput
+              value={memoryDraft}
+              onChangeText={setMemoryDraft}
+              placeholder={"I'm learning app development\\nI prefer concise explanations"}
+              placeholderTextColor={palette.muted}
+              multiline
+              textAlignVertical="top"
+              style={styles.memoryInput}
+            />
+            <View style={styles.memoryActions}>
+              <Pressable onPress={() => { setMemoryDraft(""); }} style={styles.clearMemoryButton}>
+                <Text style={styles.clearMemoryText}>Clear</Text>
+              </Pressable>
+              <Pressable onPress={saveMemoryNotes} style={styles.saveMemoryButton}>
+                <Text style={styles.saveMemoryText}>Save memory</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.memoryFootnote}>{memories.length} saved notes · Stored on this device</Text>
+          </View>
+        ) : showHistory ? (
           <View style={styles.history}>
             <View style={styles.historyTop}>
               <Text style={styles.sectionLabel}>YOUR CONVERSATIONS</Text>
@@ -309,6 +357,7 @@ const styles = StyleSheet.create({
   },
   headerButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center" },
   menuGlyph: { fontSize: 20, color: palette.ink },
+  memoryGlyph: { fontSize: 25, color: palette.ink },
   plus: { fontSize: 27, color: palette.ink, fontWeight: "300" },
   brand: { alignItems: "center", gap: 3 },
   brandName: { color: palette.ink, fontSize: 17, fontWeight: "600", letterSpacing: -0.5 },
@@ -354,5 +403,14 @@ const styles = StyleSheet.create({
   historyItem: { paddingVertical: 15, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.line },
   historyTitle: { color: palette.ink, fontSize: 14 },
   historyDate: { color: palette.muted, fontSize: 10, marginTop: 5 },
-  emptyHistory: { color: palette.muted, fontSize: 13, lineHeight: 20, paddingTop: 12 }
+  emptyHistory: { color: palette.muted, fontSize: 13, lineHeight: 20, paddingTop: 12 },
+  memoryTitle: { color: palette.ink, fontSize: 27, fontWeight: "500", letterSpacing: -0.8, marginTop: 20 },
+  memoryHelp: { color: palette.muted, fontSize: 13, lineHeight: 20, marginTop: 10, marginBottom: 20 },
+  memoryInput: { minHeight: 220, borderWidth: 1, borderColor: palette.line, borderRadius: 14, backgroundColor: palette.white, padding: 15, color: palette.ink, fontSize: 14, lineHeight: 23 },
+  memoryActions: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 12, marginTop: 15 },
+  clearMemoryButton: { paddingHorizontal: 16, paddingVertical: 12 },
+  clearMemoryText: { color: palette.muted, fontSize: 13 },
+  saveMemoryButton: { paddingHorizontal: 18, paddingVertical: 12, backgroundColor: palette.ink, borderRadius: 11 },
+  saveMemoryText: { color: palette.white, fontSize: 13, fontWeight: "600" },
+  memoryFootnote: { color: palette.muted, fontSize: 10, marginTop: 14 }
 });
