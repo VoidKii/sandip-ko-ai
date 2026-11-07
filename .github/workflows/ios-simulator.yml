@@ -1,0 +1,45 @@
+name: iOS simulator build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios-simulator:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.15.1
+
+      - name: Install JavaScript dependencies and native llama binaries
+        run: npm install --no-audit --no-fund
+
+      - name: Generate iOS project
+        run: npx expo prebuild --platform ios --non-interactive
+
+      - name: Install CocoaPods dependencies
+        run: pod install --project-directory=ios
+
+      - name: Build for iOS Simulator
+        run: |
+          WORKSPACE="$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)"
+          SCHEME="$(xcodebuild -list -json -workspace "$WORKSPACE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["workspace"]["schemes"][0])')"
+          xcodebuild             -workspace "$WORKSPACE"             -scheme "$SCHEME"             -sdk iphonesimulator             -configuration Debug             -destination 'generic/platform=iOS Simulator'             -derivedDataPath build             CODE_SIGNING_ALLOWED=NO             build
+
+      - name: Upload simulator app
+        uses: actions/upload-artifact@v4
+        with:
+          name: sandip-ko-ai-ios-simulator
+          path: build/Build/Products/Debug-iphonesimulator/*.app
+          if-no-files-found: error
+          retention-days: 7
