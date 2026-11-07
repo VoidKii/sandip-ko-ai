@@ -29,6 +29,13 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: ""
+
+      - name: Install Android platform and build tools
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
@@ -40,7 +47,14 @@ jobs:
         working-directory: android
         env:
           ORG_GRADLE_PROJECT_reactNativeArchitectures: arm64-v8a,x86_64
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Verify APK
+        run: |
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          ls -lh "$APK"
+          file "$APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
