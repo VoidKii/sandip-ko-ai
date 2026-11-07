@@ -30,11 +30,26 @@ jobs:
       - name: Install CocoaPods dependencies
         run: pod install --project-directory=ios
 
-      - name: Build for iOS Simulator
+      - name: Build app for iOS Simulator
         run: |
           WORKSPACE="$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)"
-          SCHEME="$(xcodebuild -list -json -workspace "$WORKSPACE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["workspace"]["schemes"][0])')"
-          xcodebuild             -workspace "$WORKSPACE"             -scheme "$SCHEME"             -sdk iphonesimulator             -configuration Debug             -destination 'generic/platform=iOS Simulator'             -derivedDataPath build             CODE_SIGNING_ALLOWED=NO             build
+          SCHEME="$(xcodebuild -list -json -workspace "$WORKSPACE" | python3 -c 'import json,sys; d=json.load(sys.stdin); schemes=d["workspace"]["schemes"]; matches=[s for s in schemes if s.lower()=="sandipkoai"]; print(matches[0] if matches else next((s for s in schemes if "sandip" in s.lower()), ""))')"
+          if [ -z "$SCHEME" ]; then
+            echo "Could not find the app scheme. Available schemes:"
+            xcodebuild -list -workspace "$WORKSPACE"
+            exit 1
+          fi
+          echo "Building scheme: $SCHEME"
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+          find build/Build/Products/Debug-iphonesimulator -maxdepth 2 -name '*.app' -print
 
       - name: Upload simulator app
         uses: actions/upload-artifact@v4
