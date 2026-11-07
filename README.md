@@ -12,7 +12,7 @@ The first native inference path is now wired into the chat screen.
 - llama.cpp inference through `llama.rn`.
 - One-time in-app download for the Qwen2.5 1.5B Instruct Q4_K_M GGUF model.
 - No account, Supabase, analytics, or cloud inference endpoint.
-- GitHub Actions workflow for building an Android debug APK and storing it as a short-lived artifact.
+- GitHub Actions workflows for building an Android debug APK and an unsigned iOS Simulator app; artifacts are stored for 7 days.
 
 **Important:** this is still an early development build. The Android workflow is configured, but the APK must pass a cloud build and then be installed and tested on a physical phone. iOS still needs a signed build and a physical-device test. A model download and a compatible native build are required before the AI can answer.
 
@@ -44,4 +44,5 @@ Conversation history is stored locally using AsyncStorage. No remote AI endpoint
 ## Platforms
 
 - Android: native build can be produced from Windows, Linux, or macOS with the Android toolchain.
-- iOS: local native compilation requires macOS/Xcode; cloud build services are an alternative.
+- iOS Simulator: a macOS GitHub Actions workflow compiles an unsigned simulator app for build verification.
+- iPhone: a physical-device install still requires a signed iOS build and Apple signing credentials. The simulator artifact is not installable on a physical iPhone.
