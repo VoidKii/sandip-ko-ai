@@ -27,7 +27,7 @@ class LlamaLocalEngine implements LocalAIEngine {
   async getStatus(): Promise<EngineStatus> {
     try {
       const info = await FileSystem.getInfoAsync(MODEL_PATH);
-      return info.exists
+      return info.exists && (info.size ?? 0) >= 100_000_000
         ? { state: "ready", modelName: LOCAL_MODEL.name }
         : { state: "not-installed", message: "Download the local model to begin." };
     } catch {
