@@ -8,11 +8,13 @@ The first native inference path is now wired into the chat screen.
 
 - Claude-inspired, warm editorial chat interface.
 - Local conversation history using AsyncStorage.
+- Editable personal memory notes, saved locally and included in future prompts.
 - llama.cpp inference through `llama.rn`.
 - One-time in-app download for the Qwen2.5 1.5B Instruct Q4_K_M GGUF model.
 - No account, Supabase, analytics, or cloud inference endpoint.
+- GitHub Actions workflow for building an Android debug APK and storing it as a short-lived artifact.
 
-**Important:** this is still an early development build. The Android and iOS native builds have not yet been compiled or tested on a physical phone. A model download and a compatible native development build are required before the AI can answer.
+**Important:** this is still an early development build. The Android workflow is configured, but the APK must pass a cloud build and then be installed and tested on a physical phone. iOS still needs a signed build and a physical-device test. A model download and a compatible native build are required before the AI can answer.
 
 ## Model
 
